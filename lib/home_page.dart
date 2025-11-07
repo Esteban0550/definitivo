@@ -1,445 +1,588 @@
-import 'package:flutter/material.dart'; // Importa widgets visuales de Flutter
-import 'package:firebase_auth/firebase_auth.dart'; // Para manejar la autenticación de Firebase
-import 'messages_page.dart'; // Página de mensajes
-import 'settings_page.dart'; // Página de configuración
-import 'agendar_cita_page.dart'; // Página para agendar citas
-import 'citas_page.dart'; // Página que muestra citas
-import 'screens/appointments_list_screen.dart'; // Pantalla de lista de citas
+import 'package:flutter/cupertino.dart';
+import 'package:flutter/material.dart'; // Necesario para el SnackBar y Material en Draggable
+import 'package:firebase_auth/firebase_auth.dart';
+import 'messages_page.dart';
+import 'settings_page.dart';
+import 'screens/appointments_list_screen.dart';
 
-// Widget principal de la página de inicio
+// --- MEJORA 2: MODELOS DE DATOS ---
+class Doctor {
+  final String name;
+  final String spec;
+  final IconData icon;
+
+  Doctor({required this.name, required this.spec, this.icon = CupertinoIcons.person_alt_circle});
+}
+
+class ServiceItem {
+  final String title;
+  final String subtitle;
+  final IconData icon;
+  final Color iconColor;
+
+  ServiceItem({
+    required this.title,
+    required this.subtitle,
+    required this.icon,
+    required this.iconColor,
+  });
+}
+// --- FIN MEJORA 2 ---
+
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
+
   @override
   State<HomePage> createState() => _HomePageState();
 }
 
-// Estado de la HomePage (donde se maneja la lógica)
 class _HomePageState extends State<HomePage> {
-  int _currentIndex = 0; // Controla qué pestaña está seleccionada en el BottomNavigationBar
-  final User? user = FirebaseAuth.instance.currentUser; // Usuario actual autenticado
+  int _currentIndex = 0;
+  final User? user = FirebaseAuth.instance.currentUser;
+  Doctor? _favoriteDoctor;
+
+  // --- 5 WIDGETS AÑADIDOS: Variables de Estado ---
+  bool _notificationsEnabled = true;
+  int? _selectedSegment = 0;
+  final _searchController = TextEditingController();
+  bool _loading = false; // Estado para el ActivityIndicator
+  // --- FIN WIDGETS AÑADIDOS ---
+
+  final List<Doctor> _doctors = [
+    Doctor(name: "Dr. Juan Pérez", spec: "Médico General"),
+    Doctor(name: "Dra. Ana Gómez", spec: "Pediatría"),
+    Doctor(name: "Dr. Carlos Ruiz", spec: "Cardiología"),
+  ];
+
+  final List<ServiceItem> _services = [
+    ServiceItem(
+      title: "Consulta rápida",
+      subtitle: "Atención médica inmediata",
+      icon: CupertinoIcons.time_solid,
+      iconColor: const Color(0xFF667EEA),
+    ),
+    ServiceItem(
+      title: "Emergencias 24/7",
+      subtitle: "Atención urgente las 24 horas",
+      icon: CupertinoIcons.bolt_fill,
+      iconColor: const Color(0xFFF5576C),
+    ),
+  ];
+
+  // --- 5 WIDGETS AÑADIDOS: Dispose ---
+  // Es buena práctica limpiar los controllers
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+  // --- FIN WIDGETS AÑADIDOS ---
 
   @override
   Widget build(BuildContext context) {
-    // Lista de páginas que cambian según el índice actual
     final pages = [
-      _buildHomeContent(context), // Página principal
-      const MessagesPage(), // Mensajes
-      AppointmentsListScreen(), // Citas
-      const SettingsPage(), // Configuración
+      _buildHomeContent(context),
+      const MessagesPage(),
+      AppointmentsListScreen(),
+      const SettingsPage(),
     ];
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Simi Salud',
-            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 24)),
+    return CupertinoPageScaffold(
+      navigationBar: CupertinoNavigationBar(
         backgroundColor: const Color(0xFF3E8DF5),
-        foregroundColor: Colors.white,
-        elevation: 0,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.notifications_outlined), // Icono de notificaciones
-            onPressed: () {}, // Sin acción aún
-          ),
-        ],
-      ),
-      body: pages[_currentIndex], // Muestra la página actual
-      bottomNavigationBar: Container(
-        decoration: BoxDecoration(
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.1),
-              blurRadius: 10,
-              offset: const Offset(0, -5),
-            ),
-          ],
+        middle: const Text(
+          'Simi Salud',
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
         ),
-        // Barra inferior con iconos de navegación
-        child: BottomNavigationBar(
-          type: BottomNavigationBarType.fixed,
-          currentIndex: _currentIndex,
-          selectedItemColor: const Color(0xFF3E8DF5),
-          unselectedItemColor: Colors.grey,
-          selectedLabelStyle: const TextStyle(fontWeight: FontWeight.bold),
-          onTap: (i) => setState(() => _currentIndex = i), // Cambia la pestaña
-          items: const [
-            BottomNavigationBarItem(icon: Icon(Icons.home_rounded), label: 'Inicio'),
-            BottomNavigationBarItem(icon: Icon(Icons.message_rounded), label: 'Mensajes'),
-            BottomNavigationBarItem(icon: Icon(Icons.calendar_today_rounded), label: 'Mis Citas'),
-            BottomNavigationBarItem(icon: Icon(Icons.settings_rounded), label: 'Ajustes'),
-          ],
+        trailing: CupertinoButton(
+          padding: EdgeInsets.zero,
+          child: const Icon(CupertinoIcons.bell, color: Colors.white),
+          onPressed: () {},
+        ),
+      ),
+      child: SafeArea(
+        child: CupertinoTabScaffold(
+          tabBar: CupertinoTabBar(
+            backgroundColor: Colors.white,
+            activeColor: const Color(0xFF3E8DF5),
+            inactiveColor: Colors.grey,
+            items: const [
+              BottomNavigationBarItem(icon: Icon(CupertinoIcons.home), label: 'Inicio'),
+              BottomNavigationBarItem(icon: Icon(CupertinoIcons.chat_bubble_text), label: 'Mensajes'),
+              BottomNavigationBarItem(icon: Icon(CupertinoIcons.calendar), label: 'Citas'),
+              BottomNavigationBarItem(icon: Icon(CupertinoIcons.settings), label: 'Ajustes'),
+            ],
+            onTap: (i) => setState(() => _currentIndex = i),
+          ),
+          tabBuilder: (context, index) => CupertinoPageScaffold(
+            backgroundColor: CupertinoColors.systemGroupedBackground,
+            child: pages[index],
+          ),
         ),
       ),
     );
   }
 
-  // Contenido principal de la pantalla de inicio
   Widget _buildHomeContent(BuildContext context) {
-    final displayName =
-        user?.displayName ?? user?.email?.split('@').first ?? 'Usuario'; // Nombre o email del usuario
+    final displayName = user?.displayName ?? user?.email?.split('@').first ?? 'Usuario';
 
-    return Container(
-      decoration: const BoxDecoration(
-        gradient: LinearGradient( // Fondo con degradado azul
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [Color(0xFF3E8DF5), Color(0xFFE3F2FD)],
-          stops: [0.0, 0.3],
+    return CustomScrollView(
+      slivers: [
+        CupertinoSliverRefreshControl(
+          onRefresh: () async {
+            await Future.delayed(const Duration(seconds: 1));
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text("Contenido actualizado ✅")),
+            );
+          },
         ),
-      ),
-      child: SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            // Header con saludo al usuario
-            Container(
-              padding: const EdgeInsets.all(24),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('¡Hola, $displayName! 👋',
-                      style: const TextStyle(
-                        fontSize: 28,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                      )),
-                  const SizedBox(height: 8),
-                  const Text(
-                    '¿En qué podemos ayudarte hoy?',
-                    style: TextStyle(fontSize: 16, color: Colors.white70),
-                  ),
-                ],
+        SliverToBoxAdapter(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // --- MEJORA 1: HEADER LIMPIO ---
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text("¡Hola, $displayName! 👋",
+                        style: const TextStyle(
+                            fontSize: 28,
+                            fontWeight: FontWeight.bold,
+                            color: CupertinoColors.black)),
+                    const SizedBox(height: 6),
+                    const Text("¿En qué podemos ayudarte hoy?",
+                        style: TextStyle(color: CupertinoColors.secondaryLabel, fontSize: 16)),
+                  ],
+                ),
               ),
-            ),
+              // --- FIN MEJORA 1 ---
 
-            // Sección de tarjetas principales
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Column(
-                children: [
-                  Row(
-                    children: [
-                      // Tarjeta de "Agendar Cita"
-                      Expanded(
-                        child: _actionCard(
-                          context,
-                          icon: Icons.calendar_month_rounded,
-                          title: 'Agendar Cita',
-                          subtitle: 'Reserva aquí',
-                          gradient: const LinearGradient(
-                            colors: [Color(0xFF667EEA), Color(0xFF764BA2)],
-                          ),
-                          onTap: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => AppointmentsListScreen(),
-                              ),
-                            );
+              // --- 5 WIDGETS DE CUPERTINO AÑADIDOS ---
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Column(
+                  children: [
+                    // Widget 1: SearchTextField
+                    CupertinoSearchTextField(
+                      controller: _searchController,
+                      placeholder: 'Buscar especialistas...',
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Widget 2: SlidingSegmentedControl
+                    SizedBox(
+                      width: double.infinity,
+                      child: CupertinoSlidingSegmentedControl<int>(
+                        groupValue: _selectedSegment,
+                        onValueChanged: (value) {
+                          setState(() => _selectedSegment = value);
+                        },
+                        children: const {
+                          0: Padding(padding: EdgeInsets.all(8), child: Text('Doctores')),
+                          1: Padding(padding: EdgeInsets.all(8), child: Text('Servicios')),
+                        },
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Widget 3: Switch (en un contenedor tipo lista)
+                    Container(
+                      decoration: BoxDecoration(
+                        color: CupertinoColors.white,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: CupertinoListTile(
+                        title: const Text('Activar recordatorios'),
+                        // El Switch es el 'trailing'
+                        trailing: CupertinoSwitch(
+                          value: _notificationsEnabled,
+                          onChanged: (value) {
+                            setState(() => _notificationsEnabled = value);
                           },
                         ),
                       ),
-                      const SizedBox(width: 12),
-                      // Tarjeta de "Consejos médicos"
-                      Expanded(
-                        child: _actionCard(
-                          context,
-                          icon: Icons.medical_information_rounded,
-                          title: 'Consejos',
-                          subtitle: 'Tips de salud',
-                          gradient: const LinearGradient(
-                            colors: [Color(0xFFF093FB), Color(0xFFF5576C)],
-                          ),
-                          onTap: () {
-                            // Muestra un diálogo con consejos
-                            showDialog(
+                    ),
+                    const SizedBox(height: 10),
+
+                    // Widgets 4 & 5: Alert Button & Activity Indicator
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        // Widget 4: Botón para Alerta
+                        CupertinoButton(
+                          child: const Text('Mostrar Alerta'),
+                          onPressed: () {
+                            showCupertinoDialog(
                               context: context,
-                              builder: (_) => AlertDialog(
-                                shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(20)),
-                                title: Row(
-                                  children: const [
-                                    Icon(Icons.medical_information,
-                                        color: Color(0xFF3E8DF5)),
-                                    SizedBox(width: 8),
-                                    Text('Consejos médicos'),
-                                  ],
-                                ),
-                                content: const Text(
-                                    '💧 Mantente hidratado\n😴 Descansa adecuadamente\n💊 Toma medicamentos según prescripción\n🏃 Mantén actividad física regular'),
+                              builder: (context) => CupertinoAlertDialog(
+                                title: const Text('Alerta de Salud'),
+                                content: const Text('Recuerda tu próxima cita.'),
                                 actions: [
-                                  TextButton(
-                                    onPressed: () => Navigator.pop(context),
+                                  CupertinoDialogAction(
+                                    isDefaultAction: true,
                                     child: const Text('Entendido'),
-                                  )
+                                    onPressed: () => Navigator.pop(context),
+                                  ),
                                 ],
                               ),
                             );
                           },
                         ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  // Tarjeta "Ver mis citas"
-                  _actionCard(
-                    context,
-                    icon: Icons.list_alt_rounded,
-                    title: 'Ver mis citas',
-                    subtitle: 'Tus consultas',
-                    gradient: const LinearGradient(
-                      colors: [Color(0xFF4FACFE), Color(0xFF00F2FE)],
+                        
+                        // Widget 5: Indicador de Carga
+                        // Se mostrará si _loading es true
+                        if (_loading)
+                          const CupertinoActivityIndicator(radius: 12),
+                      ],
                     ),
-                    fullWidth: true,
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => AppointmentsListScreen(),
-                        ),
-                      );
-                    },
-                  ),
-                ],
+                    // Botón para probar el loading
+                    CupertinoButton.filled(
+                      child: const Text("Probar 'Cargando' (Toggle)"),
+                      onPressed: () {
+                        setState(() => _loading = !_loading);
+                      },
+                    ),
+                    const SizedBox(height: 20), // Espacio extra antes de las tarjetas
+                  ],
+                ),
               ),
-            ),
+              // --- FIN 5 WIDGETS ---
 
-            const SizedBox(height: 32),
-
-            // Lista de especialistas
-            Container(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: const [
-                      Icon(Icons.favorite, color: Color(0xFF3E8DF5)),
-                      SizedBox(width: 8),
-                      Text(
-                        'Nuestros Especialistas',
-                        style: TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
-                            color: Color(0xFF2C3E50)),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                  _doctorCard(Icons.person_rounded, 'Dr. Juan Pérez', 'Médico General', const Color(0xFF667EEA)),
-                  _doctorCard(Icons.child_care_rounded, 'Dra. Ana Gómez', 'Pediatría', const Color(0xFFF093FB)),
-                  _doctorCard(Icons.favorite_rounded, 'Dr. Carlos Ruiz', 'Cardiología', const Color(0xFFF5576C)),
-                  _doctorCard(Icons.face_rounded, 'Dra. Laura Fernández', 'Dermatología', const Color(0xFF4FACFE)),
-                  _doctorCard(Icons.accessibility_new_rounded, 'Dr. Miguel Torres', 'Ortopedia', const Color(0xFF43E97B)),
-                ],
-              ),
-            ),
-
-            const SizedBox(height: 16),
-
-            // Sección de servicios destacados
-            Container(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: const [
-                      Icon(Icons.stars, color: Color(0xFFFFB800)),
-                      SizedBox(width: 8),
-                      Text(
-                        'Servicios Destacados',
-                        style: TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
-                            color: Color(0xFF2C3E50)),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                  _serviceCard(Icons.local_hospital_rounded, 'Consulta Rápida',
-                      'Atención inmediata para problemas leves', const Color(0xFF667EEA), () {}),
-                  _serviceCard(Icons.medical_services_rounded, 'Emergencias 24/7',
-                      'Atención de urgencias las 24 horas', const Color(0xFFF5576C), () {}),
-                ],
-              ),
-            ),
-          ],
+              _buildCupertinoCards(context),
+              const SizedBox(height: 30),
+              _buildDoctorSection(context),
+              const SizedBox(height: 30),
+              _buildServiceSection(context),
+              const SizedBox(height: 30), // Espacio al final
+            ],
+          ),
         ),
+      ],
+    );
+  }
+
+  Widget _buildCupertinoCards(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: _cupertinoActionCard(
+                  icon: CupertinoIcons.calendar,
+                  title: 'Agendar Cita',
+                  subtitle: 'Reserva aquí',
+                  color1: const Color(0xFF667EEA),
+                  color2: const Color(0xFF764BA2),
+                  onTap: () {
+                    Navigator.push(context,
+                        CupertinoPageRoute(builder: (_) => AppointmentsListScreen()));
+                  },
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _cupertinoActionCard(
+                  icon: CupertinoIcons.heart,
+                  title: 'Consejos',
+                  subtitle: 'Tips de salud',
+                  color1: const Color(0xFFF093FB),
+                  color2: const Color(0xFFF5576C),
+                  onTap: () {
+                    showCupertinoDialog(
+                      context: context,
+                      builder: (_) => CupertinoAlertDialog(
+                        title: const Text("Consejos médicos 🩺"),
+                        content: const Text(
+                            "💧 Mantente hidratado\n😴 Duerme bien\n🏃‍♂️ Haz ejercicio\n🍎 Come saludable"),
+                        actions: [
+                          CupertinoDialogAction(
+                            isDefaultAction: true,
+                            child: const Text("Ok"),
+                            onPressed: () => Navigator.pop(context),
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          _cupertinoActionCard(
+            icon: CupertinoIcons.list_bullet,
+            title: 'Ver mis citas',
+            subtitle: 'Tus consultas',
+            color1: const Color(0xFF4FACFE),
+            color2: const Color(0xFF00F2FE),
+            fullWidth: true,
+            onTap: () {
+              Navigator.push(
+                  context, CupertinoPageRoute(builder: (_) => AppointmentsListScreen()));
+            },
+          ),
+        ],
       ),
     );
   }
 
-  // Widget genérico para las tarjetas de acción del home
-  Widget _actionCard(
-    BuildContext context, {
+  Widget _cupertinoActionCard({
     required IconData icon,
     required String title,
     required String subtitle,
-    required Gradient gradient,
+    required Color color1,
+    required Color color2,
     required VoidCallback onTap,
     bool fullWidth = false,
   }) {
-    return InkWell(
+    return GestureDetector(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(20),
+      onLongPress: () {
+        showCupertinoModalPopup(
+          context: context,
+          builder: (ctx) => CupertinoActionSheet(
+            title: Text(title),
+            message: Text("Has hecho una pulsación larga en '$subtitle'"),
+            actions: [
+              CupertinoActionSheetAction(
+                child: const Text("Ver detalles (Acción 1)"),
+                onPressed: () => Navigator.pop(ctx),
+              ),
+              CupertinoActionSheetAction(
+                child: const Text("Compartir (Acción 2)"),
+                onPressed: () => Navigator.pop(ctx),
+              ),
+            ],
+            cancelButton: CupertinoActionSheetAction(
+              isDestructiveAction: true,
+              child: const Text("Cancelar"),
+              onPressed: () => Navigator.pop(ctx),
+            ),
+          ),
+        );
+      },
       child: Container(
-        height: fullWidth ? 90 : 130,
-        padding: const EdgeInsets.all(14),
+        margin: EdgeInsets.only(bottom: fullWidth ? 0 : 10),
+        padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          gradient: gradient,
+          gradient: LinearGradient(colors: [color1, color2]),
           borderRadius: BorderRadius.circular(20),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.1),
-              blurRadius: 10,
-              offset: const Offset(0, 5),
-            ),
+                color: Colors.black26, blurRadius: 6, offset: const Offset(0, 3)),
           ],
         ),
         child: fullWidth
             ? Row(
                 children: [
-                  Container(
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.3),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Icon(icon, size: 28, color: Colors.white),
-                  ),
+                  Icon(icon, color: Colors.white, size: 30),
                   const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text(title,
-                            style: const TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.white)),
-                        const SizedBox(height: 2),
-                        Text(subtitle,
-                            style: const TextStyle(
-                                fontSize: 12, color: Colors.white70)),
-                      ],
-                    ),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(title, style: const TextStyle(color: Colors.white70)),
+                      Text(subtitle,
+                          style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                              fontSize: 18)),
+                    ],
                   ),
-                  const Icon(Icons.arrow_forward_ios,
-                      color: Colors.white70, size: 16),
+                  const Spacer(),
+                  const Icon(CupertinoIcons.forward, color: Colors.white70, size: 18),
                 ],
               )
             : Column(
                 mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Container(
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.3),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Icon(icon, size: 32, color: Colors.white),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(title,
-                      style: const TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white)),
-                  const SizedBox(height: 2),
+                  Icon(icon, color: Colors.white, size: 30),
+                  const SizedBox(height: 12),
+                  Text(title, style: const TextStyle(color: Colors.white70)),
                   Text(subtitle,
                       style: const TextStyle(
-                          fontSize: 11, color: Colors.white70)),
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                          fontSize: 18)),
                 ],
               ),
       ),
     );
   }
 
-  // Tarjeta para mostrar un doctor
-  Widget _doctorCard(
-      IconData icon, String name, String specialty, Color color) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-              color: Colors.black.withOpacity(0.05),
-              blurRadius: 10,
-              offset: const Offset(0, 2)),
-        ],
-      ),
-      child: ListTile(
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        leading: Container(
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: color.withOpacity(0.1),
-            borderRadius: BorderRadius.circular(12),
+  Widget _buildDoctorSection(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text("Nuestros Especialistas 🩺",
+              style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: CupertinoColors.black)),
+          const SizedBox(height: 12),
+          DragTarget<Doctor>(
+            builder: (context, candidateData, rejectedData) {
+              return Container(
+                height: 80,
+                width: double.infinity,
+                decoration: BoxDecoration(
+                  color: _favoriteDoctor == null
+                      ? CupertinoColors.systemGroupedBackground
+                      : CupertinoColors.activeGreen.withOpacity(0.1),
+                  border: Border.all(
+                      color: candidateData.isNotEmpty
+                          ? CupertinoColors.activeBlue
+                          : CupertinoColors.lightBackgroundGray,
+                      width: 2),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Center(
+                  child: Text(
+                    _favoriteDoctor == null
+                        ? "Arrastra a tu doctor favorito aquí"
+                        : "⭐ Dr. Favorito: ${_favoriteDoctor!.name}",
+                    style: const TextStyle(color: CupertinoColors.secondaryLabel),
+                  ),
+                ),
+              );
+            },
+            onAccept: (doctor) {
+              setState(() {
+                _favoriteDoctor = doctor;
+              });
+            },
           ),
-          child: Icon(icon, color: color, size: 28),
-        ),
-        title: Text(name,
-            style:
-                const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-        subtitle:
-            Text(specialty, style: TextStyle(color: Colors.grey[600])),
-        trailing:
-            Icon(Icons.arrow_forward_ios, color: Colors.grey[400], size: 16),
-        onTap: () {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Contactando con $name...'),
-              backgroundColor: color,
-              behavior: SnackBarBehavior.floating,
-              shape:
-                  RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-            ),
-          );
-        },
+          const SizedBox(height: 16),
+          ..._doctors.map(
+            (doctor) {
+              return Dismissible(
+                key: Key(doctor.name),
+                direction: DismissDirection.startToEnd,
+                onDismissed: (direction) {
+                  final removedDoctor = doctor;
+                  final removedDoctorIndex = _doctors.indexOf(doctor);
+
+                  setState(() {
+                    _doctors.remove(doctor);
+                  });
+
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text("${removedDoctor.name} eliminado."),
+                      action: SnackBarAction(
+                        label: "DESHACER",
+                        onPressed: () {
+                          setState(() {
+                            _doctors.insert(removedDoctorIndex, removedDoctor);
+                          });
+                        },
+                      ),
+                    ),
+                  );
+                },
+                background: Container(
+                  color: CupertinoColors.destructiveRed,
+                  alignment: Alignment.centerLeft,
+                  padding: const EdgeInsets.symmetric(horizontal: 20.0),
+                  child: const Row(
+                    children: [
+                      Icon(CupertinoIcons.delete, color: Colors.white),
+                      SizedBox(width: 8),
+                      Text("Eliminar", style: TextStyle(color: Colors.white)),
+                    ],
+                  ),
+                ),
+                child: Draggable<Doctor>(
+                  data: doctor,
+                  feedback: SizedBox(
+                    width: MediaQuery.of(context).size.width * 0.9,
+                    child: Material(
+                      elevation: 4.0,
+                      child: Container(
+                        color: Colors.white,
+                        child: CupertinoListTile(
+                          title: Text(doctor.name),
+                          subtitle: Text(doctor.spec),
+                          leading: Icon(doctor.icon, color: const Color(0xFF3E8DF5)),
+                        ),
+                      ),
+                    ),
+                  ),
+                  childWhenDragging: Container(
+                    decoration: BoxDecoration(
+                        color: CupertinoColors.systemGroupedBackground,
+                        border: Border(
+                            bottom: BorderSide(
+                                color: CupertinoColors.lightBackgroundGray))),
+                    child: CupertinoListTile(
+                      title: Text(doctor.name,
+                          style: TextStyle(color: CupertinoColors.placeholderText)),
+                      subtitle: Text(doctor.spec,
+                          style: TextStyle(color: CupertinoColors.placeholderText)),
+                      leading:
+                          Icon(doctor.icon, color: CupertinoColors.placeholderText),
+                    ),
+                  ),
+                  child: CupertinoListTile(
+                    title: Text(doctor.name),
+                    subtitle: Text(doctor.spec),
+                    leading: Icon(doctor.icon, color: const Color(0xFF3E8DF5)),
+                    trailing: const Icon(CupertinoIcons.forward),
+                    onTap: () {
+                      showCupertinoDialog(
+                        context: context,
+                        builder: (_) => CupertinoAlertDialog(
+                          title: Text(doctor.name),
+                          content: Text("Especialidad: ${doctor.spec}"),
+                          actions: [
+                            CupertinoDialogAction(
+                              child: const Text("Cerrar"),
+                              onPressed: () => Navigator.pop(context),
+                            )
+                          ],
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              );
+            },
+          ),
+        ],
       ),
     );
   }
 
-  // Tarjeta para servicios destacados
-  Widget _serviceCard(IconData icon, String title, String subtitle, Color color,
-      VoidCallback onTap) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-              color: Colors.black.withOpacity(0.05),
-              blurRadius: 10,
-              offset: const Offset(0, 2)),
-        ],
-      ),
-      child: ListTile(
-        contentPadding: const EdgeInsets.all(16),
-        leading: Container(
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            gradient:
-                LinearGradient(colors: [color, color.withOpacity(0.7)]),
-            borderRadius: BorderRadius.circular(12),
+  Widget _buildServiceSection(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text("Servicios Destacados ⭐",
+              style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: CupertinoColors.black)),
+          const SizedBox(height: 12),
+          ..._services.map(
+            (service) => CupertinoListTile(
+              leading: Icon(service.icon, color: service.iconColor),
+              title: Text(service.title),
+              subtitle: Text(service.subtitle),
+              onTap: () {
+                // Aquí puedes agregar la lógica para cada servicio
+              },
+            ),
           ),
-          child: Icon(icon, color: Colors.white, size: 28),
-        ),
-        title: Text(title,
-            style:
-                const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-        subtitle: Padding(
-          padding: const EdgeInsets.only(top: 4),
-          child: Text(subtitle,
-              style: TextStyle(color: Colors.grey[600], fontSize: 13)),
-        ),
-        trailing: Icon(Icons.arrow_forward_ios, color: color, size: 18),
-        onTap: onTap, // Acción al presionar
+        ],
       ),
     );
   }

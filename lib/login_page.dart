@@ -1,92 +1,153 @@
-// Importa el paquete principal de Flutter para construir interfaces gráficas
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-// Importa el paquete de autenticación de Firebase
 import 'package:firebase_auth/firebase_auth.dart';
-// Importa la página principal del sistema (pantalla de inicio)
 import 'home_page.dart';
 
-// Define un widget con estado llamado SimiLoginPage
 class SimiLoginPage extends StatefulWidget {
-  const SimiLoginPage({super.key}); // Constructor con clave opcional
+  const SimiLoginPage({super.key});
 
   @override
-  State<SimiLoginPage> createState() => _SimiLoginPageState(); // Crea el estado asociado
+  State<SimiLoginPage> createState() => _SimiLoginPageState();
 }
 
-// Clase que maneja el estado del widget de login
 class _SimiLoginPageState extends State<SimiLoginPage> {
-  final _formKey = GlobalKey<FormState>(); // Llave para validar el formulario
-  final TextEditingController emailCtl = TextEditingController(); // Controlador del campo email
-  final TextEditingController passCtl = TextEditingController(); // Controlador del campo contraseña
-  final FirebaseAuth _auth = FirebaseAuth.instance; // Instancia de FirebaseAuth para autenticación
-  bool showPass = false; // Controla si se muestra la contraseña
-  bool loading = false; // Controla si se muestra el indicador de carga
+  final TextEditingController emailCtl = TextEditingController();
+  final TextEditingController passCtl = TextEditingController();
+  final FirebaseAuth _auth = FirebaseAuth.instance;
 
-  // Función asincrónica para iniciar sesión
+  bool showPass = false;
+  bool loading = false;
+  bool acceptTerms = false;
+
+  // Recarga (pull-to-refresh). Limpia campos y muestra diálogo Cupertino.
+  Future<void> _recargarFormulario() async {
+    await Future.delayed(const Duration(seconds: 1));
+    setState(() {
+      emailCtl.clear();
+      passCtl.clear();
+      acceptTerms = false;
+      showPass = false;
+    });
+
+    // Mostrar diálogo de confirmación estilo Cupertino (no usar SnackBar aquí)
+    if (mounted) {
+      showCupertinoDialog(
+        context: context,
+        builder: (_) => CupertinoAlertDialog(
+          title: const Text('Actualizado'),
+          content: const Text('Formulario recargado ✅'),
+          actions: [
+            CupertinoDialogAction(
+              isDefaultAction: true,
+              child: const Text('OK'),
+              onPressed: () => Navigator.pop(context),
+            ),
+          ],
+        ),
+      );
+    }
+  }
+
+  void _showErrorDialog(String message) {
+    showCupertinoDialog(
+      context: context,
+      builder: (_) => CupertinoAlertDialog(
+        title: const Text('Aviso'),
+        content: Text(message),
+        actions: [
+          CupertinoDialogAction(
+            isDefaultAction: true,
+            child: const Text('OK'),
+            onPressed: () => Navigator.pop(context),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _translateError(FirebaseAuthException e) {
+    switch (e.code) {
+      case 'user-not-found':
+      case 'wrong-password':
+      case 'invalid-credential':
+        return 'Correo o contraseña incorrectos.';
+      case 'email-already-in-use':
+        return 'Este correo ya está registrado.';
+      case 'weak-password':
+        return 'La contraseña debe tener al menos 6 caracteres.';
+      case 'invalid-email':
+        return 'El formato del correo no es válido.';
+      default:
+        return 'Ocurrió un error. Intenta de nuevo.';
+    }
+  }
+
   Future<void> _signIn() async {
-    if (!_formKey.currentState!.validate()) return; // Valida el formulario
-    setState(() => loading = true); // Activa el estado de carga
+    if (!acceptTerms) {
+      _showErrorDialog('Debes aceptar los términos y condiciones para continuar.');
+      return;
+    }
+    if (emailCtl.text.isEmpty || passCtl.text.isEmpty) {
+      _showErrorDialog('Por favor, completa todos los campos.');
+      return;
+    }
+
+    setState(() => loading = true);
     try {
-      // Intenta iniciar sesión con Firebase
       await _auth.signInWithEmailAndPassword(
         email: emailCtl.text.trim(),
         password: passCtl.text.trim(),
       );
       if (mounted) {
-        // Si el widget sigue montado, navega a la página principal
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (context) => const HomePage()),
+          CupertinoPageRoute(builder: (_) => const HomePage()),
         );
       }
-    } catch (e) {
-      // Muestra un mensaje de error si falla
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Error: $e")),
-        );
-      }
+    } on FirebaseAuthException catch (e) {
+      _showErrorDialog(_translateError(e));
+    } catch (_) {
+      _showErrorDialog('Error inesperado. Intenta más tarde.');
     } finally {
-      // Desactiva el estado de carga
-      if (mounted) {
-        setState(() => loading = false);
-      }
+      setState(() => loading = false);
     }
   }
 
-  // Función asincrónica para crear una nueva cuenta
   Future<void> _createAccount() async {
-    if (!_formKey.currentState!.validate()) return; // Valida el formulario
-    setState(() => loading = true); // Activa el estado de carga
+    if (!acceptTerms) {
+      _showErrorDialog('Debes aceptar los términos y condiciones para continuar.');
+      return;
+    }
+    if (emailCtl.text.isEmpty || passCtl.text.isEmpty) {
+      _showErrorDialog('Por favor, completa todos los campos.');
+      return;
+    }
+    if (passCtl.text.length < 6) {
+      _showErrorDialog('La contraseña debe tener al menos 6 caracteres.');
+      return;
+    }
+
+    setState(() => loading = true);
     try {
-      // Crea una cuenta en Firebase con correo y contraseña
       await _auth.createUserWithEmailAndPassword(
         email: emailCtl.text.trim(),
         password: passCtl.text.trim(),
       );
       if (mounted) {
-        // Navega a la página principal si todo sale bien
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (context) => const HomePage()),
+          CupertinoPageRoute(builder: (_) => const HomePage()),
         );
       }
-    } catch (e) {
-      // Muestra un mensaje de error si ocurre un problema
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Error: $e")),
-        );
-      }
+    } on FirebaseAuthException catch (e) {
+      _showErrorDialog(_translateError(e));
+    } catch (_) {
+      _showErrorDialog('Error inesperado. Intenta más tarde.');
     } finally {
-      // Desactiva el indicador de carga
-      if (mounted) {
-        setState(() => loading = false);
-      }
+      setState(() => loading = false);
     }
   }
 
-  // Libera los controladores cuando el widget se destruye
   @override
   void dispose() {
     emailCtl.dispose();
@@ -94,111 +155,138 @@ class _SimiLoginPageState extends State<SimiLoginPage> {
     super.dispose();
   }
 
-  // Construye la interfaz de usuario
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFFE3F2FD), // Color de fondo azul claro
-      body: Center(
-        child: SingleChildScrollView( // Permite desplazamiento vertical
-          padding: const EdgeInsets.all(30), // Margen interno
-          child: Form(
-            key: _formKey, // Asocia la llave del formulario
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center, // Centra los elementos
-              children: [
-                const Text(
-                  "Bienvenido a Simi Salud 🩺", // Título
-                  style: TextStyle(
-                    fontSize: 32,
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFF3E8DF5), // Azul
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 50), // Espacio vertical
-                // Campo para ingresar correo electrónico
-                TextFormField(
-                  controller: emailCtl,
-                  decoration: InputDecoration(
-                    labelText: "Correo electrónico",
-                    prefixIcon: const Icon(Icons.email_outlined),
-                    filled: true,
-                    fillColor: Colors.white,
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
+    // IMPORTANTE: como usamos RefreshIndicator (widget Material), lo envolvemos en Material
+    // para evitar errores de "no Material ancestor" cuando el app usa CupertinoPageScaffold.
+    return CupertinoPageScaffold(
+      backgroundColor: CupertinoColors.systemGroupedBackground,
+      navigationBar: const CupertinoNavigationBar(
+        middle: Text('Simi Salud 🩺'),
+        backgroundColor: CupertinoColors.white,
+      ),
+      child: SafeArea(
+        child: Material( // <-- Proporciona el ancestro Material necesario para RefreshIndicator
+          color: Colors.transparent,
+          child: RefreshIndicator(
+            onRefresh: _recargarFormulario,
+            color: CupertinoColors.activeBlue,
+            backgroundColor: CupertinoColors.white,
+            displacement: 50,
+            child: SingleChildScrollView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Text("💙", style: TextStyle(fontSize: 80)),
+                  const SizedBox(height: 10),
+                  const Text(
+                    "Bienvenido a Simi Salud",
+                    style: TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.bold,
+                      color: CupertinoColors.activeBlue,
                     ),
                   ),
-                  validator: (v) =>
-                      v == null || !v.contains('@') ? 'Correo inválido' : null,
-                ),
-                const SizedBox(height: 20),
-                // Campo para ingresar la contraseña
-                TextFormField(
-                  controller: passCtl,
-                  obscureText: !showPass, // Oculta o muestra la contraseña
-                  decoration: InputDecoration(
-                    labelText: "Contraseña",
-                    prefixIcon: const Icon(Icons.lock_outline),
-                    filled: true,
-                    fillColor: Colors.white,
-                    suffixIcon: IconButton( // Botón para mostrar/ocultar contraseña
-                      icon: Icon(
-                          showPass ? Icons.visibility_off : Icons.visibility),
+                  const SizedBox(height: 40),
+
+                  // Correo
+                  CupertinoTextField(
+                    controller: emailCtl,
+                    placeholder: "Correo electrónico",
+                    keyboardType: TextInputType.emailAddress,
+                    prefix: const Padding(
+                      padding: EdgeInsets.only(left: 12),
+                      child: Icon(CupertinoIcons.mail, color: CupertinoColors.systemGrey),
+                    ),
+                    decoration: BoxDecoration(
+                      color: CupertinoColors.white,
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: CupertinoColors.systemGrey4),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Contraseña
+                  CupertinoTextField(
+                    controller: passCtl,
+                    placeholder: "Contraseña",
+                    obscureText: !showPass,
+                    prefix: const Padding(
+                      padding: EdgeInsets.only(left: 12),
+                      child: Icon(CupertinoIcons.lock, color: CupertinoColors.systemGrey),
+                    ),
+                    suffix: CupertinoButton(
+                      padding: const EdgeInsets.only(right: 12),
                       onPressed: () => setState(() => showPass = !showPass),
-                    ),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                  validator: (v) =>
-                      v == null || v.length < 6 ? 'Mínimo 6 caracteres' : null,
-                ),
-                const SizedBox(height: 30),
-                // Botón para iniciar sesión
-                SizedBox(
-                  width: double.infinity,
-                  height: 56,
-                  child: ElevatedButton(
-                    onPressed: loading ? null : _signIn, // Deshabilitado si está cargando
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF3E8DF5),
-                      foregroundColor: Colors.white,
-                      elevation: 4,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
+                      child: Icon(
+                        showPass ? CupertinoIcons.eye_slash : CupertinoIcons.eye,
+                        color: CupertinoColors.systemGrey,
                       ),
                     ),
-                    child: loading
-                        ? const CircularProgressIndicator(color: Colors.white)
-                        : const Text('INICIAR SESIÓN',
-                            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                  ),
-                ),
-                const SizedBox(height: 16),
-                // Botón para crear una nueva cuenta
-                SizedBox(
-                  width: double.infinity,
-                  height: 56,
-                  child: OutlinedButton(
-                    onPressed: loading ? null : _createAccount,
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: const Color(0xFF3E8DF5),
-                      side: const BorderSide(color: Color(0xFF3E8DF5), width: 2),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
+                    decoration: BoxDecoration(
+                      color: CupertinoColors.white,
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: CupertinoColors.systemGrey4),
                     ),
-                    child: const Text('Crear cuenta nueva',
-                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
                   ),
-                ),
-                const SizedBox(height: 30),
-                // Texto decorativo inferior
-                const Text("💙 Atención médica con el toque Simi 💙",
-                    textAlign: TextAlign.center,
-                    style: TextStyle(color: Color(0xFF3E8DF5), fontSize: 16)),
-              ],
+                  const SizedBox(height: 25),
+
+                  // Aceptar términos y condiciones
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Expanded(
+                        child: Text(
+                          "Acepto los términos y condiciones",
+                          style: TextStyle(
+                            color: CupertinoColors.systemGrey,
+                            fontSize: 15,
+                          ),
+                        ),
+                      ),
+                      CupertinoSwitch(
+                        value: acceptTerms,
+                        onChanged: (v) => setState(() => acceptTerms = v),
+                        activeColor: CupertinoColors.activeBlue,
+                      ),
+                    ],
+                  ),
+
+                  const SizedBox(height: 30),
+
+                  // Botón iniciar sesión
+                  SizedBox(
+                    width: double.infinity,
+                    child: CupertinoButton.filled(
+                      onPressed: loading ? null : _signIn,
+                      child: loading
+                          ? const CupertinoActivityIndicator()
+                          : const Text("INICIAR SESIÓN"),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+
+                  // Botón crear cuenta
+                  SizedBox(
+                    width: double.infinity,
+                    child: CupertinoButton(
+                      onPressed: loading ? null : _createAccount,
+                      child: const Text("Crear cuenta nueva"),
+                    ),
+                  ),
+
+                  const SizedBox(height: 40),
+                  const Text(
+                    "💊 Atención médica con el toque Simi 💊",
+                    style: TextStyle(
+                      color: CupertinoColors.systemBlue,
+                      fontSize: 16,
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ),

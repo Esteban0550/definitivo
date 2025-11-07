@@ -7,7 +7,7 @@ import 'settings_page.dart';
 import 'agendar_cita_page.dart';
 import 'info_page.dart';
 import 'profile_form_page.dart';
-import 'login_page.dart';
+import 'package:definitivo/login_page.dart';
 
 // NUEVO: Importa el archivo para la página de Citas
 // Asegúrate de haber creado el archivo 'citas_page.dart' en la carpeta 'lib'

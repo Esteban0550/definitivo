@@ -65,7 +65,7 @@ class FirebaseService {
     });
   }
 
-  // --- FUNCIONES DE LECTURA (BONUS) ---
+  // --- FUNCIONES DE LECTURA ---
 
   // Leer los médicos disponibles
   Stream<QuerySnapshot> getMedicos() {
