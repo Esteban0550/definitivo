@@ -103,4 +103,68 @@ class AppointmentService {
     List<String> parts = time.split(':');
     return int.parse(parts[0]) * 60 + int.parse(parts[1]);
   }
+
+  // Obtener todas las citas de un médico específico
+  Stream<List<Appointment>> getAppointmentsByDoctor(String doctorName) {
+    return _firestore
+        .collection(_collection)
+        .where('doctorName', isEqualTo: doctorName)
+        .snapshots()
+        .map((snapshot) {
+          final appointments = snapshot.docs
+              .map((doc) => Appointment.fromMap(doc.id, doc.data()))
+              .toList();
+          // Ordenar por fecha después de obtener los datos
+          appointments.sort((a, b) => a.date.compareTo(b.date));
+          return appointments;
+        });
+  }
+
+  // Obtener citas próximas/pendientes de un médico (fecha >= hoy)
+  Stream<List<Appointment>> getUpcomingAppointmentsByDoctor(String doctorName) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    
+    return _firestore
+        .collection(_collection)
+        .where('doctorName', isEqualTo: doctorName)
+        .snapshots()
+        .map((snapshot) {
+          final appointments = snapshot.docs
+              .map((doc) => Appointment.fromMap(doc.id, doc.data()))
+              .where((appointment) {
+                final appointmentDate = appointment.date;
+                final appointmentDateOnly = DateTime(
+                  appointmentDate.year,
+                  appointmentDate.month,
+                  appointmentDate.day,
+                );
+                // Incluir citas de hoy y futuras
+                return appointmentDateOnly.isAfter(today.subtract(const Duration(days: 1)));
+              })
+              .toList();
+          // Ordenar por fecha
+          appointments.sort((a, b) => a.date.compareTo(b.date));
+          return appointments;
+        });
+  }
+
+  // Obtener total de pacientes únicos de un médico
+  Stream<int> getUniquePatientsCountByDoctor(String doctorName) {
+    return _firestore
+        .collection(_collection)
+        .where('doctorName', isEqualTo: doctorName)
+        .snapshots()
+        .map((snapshot) {
+          final patientNames = <String>{};
+          for (var doc in snapshot.docs) {
+            final data = doc.data();
+            final patientName = data['patientName'] as String? ?? '';
+            if (patientName.isNotEmpty) {
+              patientNames.add(patientName);
+            }
+          }
+          return patientNames.length;
+        });
+  }
 }

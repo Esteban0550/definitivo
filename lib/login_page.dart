@@ -1,6 +1,7 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'home_page.dart';
 
 class SimiLoginPage extends StatefulWidget {
@@ -18,6 +19,7 @@ class _SimiLoginPageState extends State<SimiLoginPage> {
   bool showPass = false;
   bool loading = false;
   bool acceptTerms = false;
+  String selectedRole = 'Paciente'; // Rol por defecto
 
   // Recarga (pull-to-refresh). Limpia campos y muestra diálogo Cupertino.
   Future<void> _recargarFormulario() async {
@@ -129,10 +131,24 @@ class _SimiLoginPageState extends State<SimiLoginPage> {
 
     setState(() => loading = true);
     try {
-      await _auth.createUserWithEmailAndPassword(
+      final userCredential = await _auth.createUserWithEmailAndPassword(
         email: emailCtl.text.trim(),
         password: passCtl.text.trim(),
       );
+      
+      // Guardar el rol en Firestore
+      if (userCredential.user != null) {
+        await FirebaseFirestore.instance
+            .collection('usuarios')
+            .doc(userCredential.user!.uid)
+            .set({
+          'email': userCredential.user!.email,
+          'rol': selectedRole,
+          'uid': userCredential.user!.uid,
+          'created_at': FieldValue.serverTimestamp(),
+        }, SetOptions(merge: true));
+      }
+      
       if (mounted) {
         Navigator.pushReplacement(
           context,
@@ -229,6 +245,81 @@ class _SimiLoginPageState extends State<SimiLoginPage> {
                       color: CupertinoColors.white,
                       borderRadius: BorderRadius.circular(10),
                       border: Border.all(color: CupertinoColors.systemGrey4),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Selector de Rol
+                  Container(
+                    decoration: BoxDecoration(
+                      color: CupertinoColors.white,
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: CupertinoColors.systemGrey4),
+                    ),
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    child: Row(
+                      children: [
+                        const Icon(CupertinoIcons.person_alt, color: CupertinoColors.systemGrey),
+                        const SizedBox(width: 12),
+                        const Expanded(
+                          child: Text(
+                            'Rol:',
+                            style: TextStyle(
+                              color: CupertinoColors.systemGrey,
+                              fontSize: 16,
+                            ),
+                          ),
+                        ),
+                        CupertinoButton(
+                          padding: EdgeInsets.zero,
+                          child: Row(
+                            children: [
+                              Text(
+                                selectedRole,
+                                style: const TextStyle(
+                                  color: CupertinoColors.activeBlue,
+                                  fontSize: 16,
+                                ),
+                              ),
+                              const SizedBox(width: 4),
+                              const Icon(
+                                CupertinoIcons.chevron_down,
+                                size: 16,
+                                color: CupertinoColors.activeBlue,
+                              ),
+                            ],
+                          ),
+                          onPressed: () {
+                            showCupertinoModalPopup(
+                              context: context,
+                              builder: (context) => CupertinoActionSheet(
+                                title: const Text('Selecciona tu rol'),
+                                actions: [
+                                  CupertinoActionSheetAction(
+                                    child: const Text('Paciente'),
+                                    onPressed: () {
+                                      setState(() => selectedRole = 'Paciente');
+                                      Navigator.pop(context);
+                                    },
+                                  ),
+                                  CupertinoActionSheetAction(
+                                    child: const Text('Médico'),
+                                    onPressed: () {
+                                      setState(() => selectedRole = 'Médico');
+                                      Navigator.pop(context);
+                                    },
+                                  ),
+                                ],
+                                cancelButton: CupertinoActionSheetAction(
+                                  isDestructiveAction: true,
+                                  child: const Text('Cancelar'),
+                                  onPressed: () => Navigator.pop(context),
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                      ],
                     ),
                   ),
                   const SizedBox(height: 25),

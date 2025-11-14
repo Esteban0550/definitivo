@@ -22,6 +22,10 @@ dependencies:
 
   # NUEVO: Paquete para internacionalización y formato (fechas, números, etc.)
   intl: ^0.19.0
+  
+  # BLoC para gestión de estado
+  flutter_bloc: ^8.1.6
+  equatable: ^2.0.5
 
 dev_dependencies:
   flutter_test:

@@ -13,6 +13,7 @@ import 'package:definitivo/login_page.dart';
 // Asegúrate de haber creado el archivo 'citas_page.dart' en la carpeta 'lib'
 import 'citas_page.dart';
 import 'screens/appointments_list_screen.dart';
+import 'pages/dashboard_page.dart';
 
 /// Clase centralizada para gestionar las rutas de la aplicación.
 ///
@@ -30,6 +31,9 @@ class AppRoutes {
   
   // NUEVO: Se define la constante para la ruta de citas
   static const String citas = '/citas';
+  
+  // Ruta para el Dashboard del médico
+  static const String dashboard = '/dashboard';
 
   /// Mapa que asocia los nombres de las rutas con el constructor del widget de la página.
   ///
@@ -48,5 +52,6 @@ class AppRoutes {
     // NUEVO: Se agrega la ruta y la página de citas al mapa
     citas: (context) => const CitasPage(),
     '/appointments': (context) => AppointmentsListScreen(),
+    dashboard: (context) => const DashboardPage(),
   };
 }
