@@ -95,10 +95,13 @@ class _ProfilePageState extends State<ProfilePage> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Información guardada exitosamente'),
+            content: Text('Información guardada exitosamente. Por favor, reinicia la app o vuelve al inicio para ver los cambios.'),
             backgroundColor: Colors.green,
+            duration: Duration(seconds: 3),
           ),
         );
+        // Regresar al inicio después de guardar para que se recargue el rol
+        Navigator.pop(context);
       }
     } catch (e) {
       if (mounted) {

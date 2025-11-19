@@ -9,6 +9,7 @@ import '../services/appointment_service.dart';
 import '../screens/appointments_list_screen.dart';
 import 'dashboard_page.dart';
 import 'doctor_patients_page.dart';
+import 'doctor_statistics_page.dart';
 
 class DoctorHomePage extends StatefulWidget {
   const DoctorHomePage({super.key});
@@ -356,6 +357,20 @@ class _DoctorHomePageState extends State<DoctorHomePage> {
                           context,
                           MaterialPageRoute(
                             builder: (_) => const DoctorPatientsPage(),
+                          ),
+                        );
+                      },
+                    ),
+                    const SizedBox(height: 8),
+                    _buildQuickAccessTile(
+                      icon: Icons.bar_chart,
+                      title: 'Estadísticas gráficas',
+                      subtitle: 'Ver análisis visual de datos',
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const DoctorStatisticsPage(),
                           ),
                         );
                       },

@@ -6,6 +6,8 @@ import '../bloc/dashboard/dashboard_bloc.dart';
 import '../bloc/dashboard/dashboard_event.dart';
 import '../bloc/dashboard/dashboard_state.dart';
 import '../services/appointment_service.dart';
+import 'doctor_statistics_page.dart';
+import 'doctor_statistics_page.dart';
 
 class DashboardPage extends StatefulWidget {
   const DashboardPage({super.key});
@@ -249,6 +251,34 @@ class _DashboardPageState extends State<DashboardPage> {
                         ),
                       ],
                     ),
+                    const SizedBox(height: 24),
+                    
+                        // Botón para ver estadísticas gráficas
+                      Center(
+                        child: ElevatedButton.icon(
+                          onPressed: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => const DoctorStatisticsPage(),
+                              ),
+                            );
+                          },
+                          icon: const Icon(Icons.bar_chart),
+                          label: const Text('Ver Gráficas de Estadísticas'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF3E8DF5),
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 24,
+                              vertical: 16,
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                        ),
+                      ),
                   ],
                 ),
               );

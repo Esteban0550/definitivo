@@ -10,6 +10,7 @@ import 'pages/doctor_home_page.dart';
 import 'pages/doctor_patients_page.dart';
 import 'pages/patient_medical_history_page.dart';
 import 'pages/doctors_page.dart';
+import 'pages/doctor_statistics_page.dart';
 
 class Doctor {
   final String name;
@@ -80,6 +81,13 @@ class _HomePageState extends State<HomePage> {
     _loadUserRole();
   }
 
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Recargar el rol cada vez que se vuelve a esta página
+    _loadUserRole();
+  }
+
   Future<void> _loadUserRole() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) {
@@ -98,17 +106,21 @@ class _HomePageState extends State<HomePage> {
       
       if (doc.exists) {
         final data = doc.data()!;
+        final rol = data['rol'] as String? ?? 'Paciente';
+        print('DEBUG: Rol cargado desde Firestore: $rol'); // Debug
         setState(() {
-          _userRole = data['rol'] as String? ?? 'Paciente';
+          _userRole = rol;
           _roleLoading = false;
         });
       } else {
+        print('DEBUG: Documento no existe, usando Paciente por defecto'); // Debug
         setState(() {
           _userRole = 'Paciente';
           _roleLoading = false;
         });
       }
     } catch (e) {
+      print('DEBUG: Error al cargar rol: $e'); // Debug
       setState(() {
         _userRole = 'Paciente';
         _roleLoading = false;
@@ -131,6 +143,7 @@ class _HomePageState extends State<HomePage> {
 
     if (isDoctor) {
       // Páginas para médicos - Menú diferente
+      // Orden: 0=Dashboard, 1=Pacientes, 2=Citas, 3=Mensajes, 4=Estadísticas, 5=Ajustes
       switch (index) {
         case 0:
           return const DoctorHomePage();
@@ -141,6 +154,8 @@ class _HomePageState extends State<HomePage> {
         case 3:
           return const MessagesPage();
         case 4:
+          return const DoctorStatisticsPage();
+        case 5:
           return const SettingsPage();
         default:
           return const DoctorHomePage();
@@ -203,29 +218,34 @@ class _HomePageState extends State<HomePage> {
         backgroundColor: Colors.white,
         indicatorColor: const Color(0xFF3E8DF5).withOpacity(0.2),
         destinations: isDoctor
-            ? const [
+            ? [
                 // Menú para Médicos - Diferente al de pacientes
-                NavigationDestination(
+                const NavigationDestination(
                   icon: Icon(Icons.dashboard_outlined),
                   selectedIcon: Icon(Icons.dashboard),
                   label: 'Dashboard',
                 ),
-                NavigationDestination(
+                const NavigationDestination(
                   icon: Icon(Icons.people_outlined),
                   selectedIcon: Icon(Icons.people),
                   label: 'Pacientes',
                 ),
-                NavigationDestination(
+                const NavigationDestination(
                   icon: Icon(Icons.calendar_today_outlined),
                   selectedIcon: Icon(Icons.calendar_today),
                   label: 'Citas',
                 ),
-                NavigationDestination(
+                const NavigationDestination(
                   icon: Icon(Icons.message_outlined),
                   selectedIcon: Icon(Icons.message),
                   label: 'Mensajes',
                 ),
-                NavigationDestination(
+                const NavigationDestination(
+                  icon: Icon(Icons.bar_chart_outlined),
+                  selectedIcon: Icon(Icons.bar_chart),
+                  label: 'Estadísticas',
+                ),
+                const NavigationDestination(
                   icon: Icon(Icons.settings_outlined),
                   selectedIcon: Icon(Icons.settings),
                   label: 'Ajustes',
@@ -472,25 +492,16 @@ class _HomePageState extends State<HomePage> {
               const SizedBox(width: 12),
               Expanded(
                 child: _buildActionCard(
-                  icon: Icons.favorite,
-                  title: 'Consejos',
-                  subtitle: 'Tips de salud',
+                  icon: Icons.bar_chart,
+                  title: 'Estadísticas',
+                  subtitle: 'Ver gráficas',
                   color1: const Color(0xFFF093FB),
                   color2: const Color(0xFFF5576C),
                   onTap: () {
-                    showDialog(
-                      context: context,
-                      builder: (_) => AlertDialog(
-                        title: const Text("Consejos médicos 🩺"),
-                        content: const Text(
-                          "💧 Mantente hidratado\n😴 Duerme bien\n🏃‍♂️ Haz ejercicio\n🍎 Come saludable",
-                        ),
-                        actions: [
-                          TextButton(
-                            onPressed: () => Navigator.pop(context),
-                            child: const Text("Ok"),
-                          ),
-                        ],
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const DoctorStatisticsPage(),
                       ),
                     );
                   },

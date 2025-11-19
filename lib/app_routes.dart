@@ -14,6 +14,7 @@ import 'package:definitivo/login_page.dart';
 import 'citas_page.dart';
 import 'screens/appointments_list_screen.dart';
 import 'pages/dashboard_page.dart';
+import 'pages/doctor_statistics_page.dart';
 
 /// Clase centralizada para gestionar las rutas de la aplicación.
 ///
@@ -34,6 +35,9 @@ class AppRoutes {
   
   // Ruta para el Dashboard del médico
   static const String dashboard = '/dashboard';
+  
+  // Ruta para las estadísticas gráficas del médico
+  static const String doctorStatistics = '/doctor-statistics';
 
   /// Mapa que asocia los nombres de las rutas con el constructor del widget de la página.
   ///
@@ -53,5 +57,6 @@ class AppRoutes {
     citas: (context) => const CitasPage(),
     '/appointments': (context) => AppointmentsListScreen(),
     dashboard: (context) => const DashboardPage(),
+    doctorStatistics: (context) => const DoctorStatisticsPage(),
   };
 }
